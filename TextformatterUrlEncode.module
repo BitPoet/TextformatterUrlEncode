@@ -1,0 +1,65 @@
+<?php
+
+/**
+ * ProcessWire URL Textformatter
+ *
+ * Formats path components in URLs with PHP's rawurlencode() function.
+ * 
+ * This code is released under the WTFPL
+ * 
+ */
+
+class TextformatterUrlEncode extends Textformatter {
+
+	public static function getModuleInfo() {
+		return array(
+			'title' => __('TextformatterUrlEncode', __FILE__), // Module Title
+			'summary' => __("Convert special characters in URL paths to their correct representation according to rfc3986. Useful for FieldtypeURL.", __FILE__), // Module Summary
+			'version' => 101,
+		); 
+	}
+
+	public function format(&$str) {
+		if(empty($str)) return;
+		$isMail = false;
+		$this->log("format({$str})");
+		// URL-decode first in case we were given an already proper URL
+		$cmp = parse_url(rawurldecode($str));
+		if(isset($cmp["scheme"]) && strtolower($cmp["scheme"]) == "mailto") {
+			$this->log("Mail URL");
+			$isMail = true;
+			list($localPart, $domainPart) = explode('@', $cmp["path"], 2);
+			$cmp["path"] = rawurlencode($localPost)
+						 . (isset($domainPart) ? '@'
+						 . rawurlencode($domainPart) : '')
+			;
+		} else {
+			$this->log("Real URL / File URL");
+			if(isset($cmp["path"]) && $cmp["path"] != '/') {
+				$cmp["path"] = implode('/',
+					array_map(
+						function($el) { return rawurlencode($el); },
+						explode('/', $cmp["path"])
+					)
+				);
+			}
+		}
+		
+		$newStr = "";
+		if(isset($cmp["scheme"])) {
+			if($isMail) $newStr .= $cmp["scheme"] . ':';
+			else if($cmp["scheme"] == "file") $newStr .= $cmp["scheme"] . ':///';
+			else $newStr .= $cmp["scheme"] . '://';
+		}
+		if(isset($cmp["user"]) && isset($cmp["pass"]))
+			$newStr .= $cmp["user"] . ':' . $cmp["pass"] . '@';
+		if(isset($cmp["host"])) $newStr .= $cmp["host"];
+		if(isset($cmp["port"])) $newStr .= ':' . $cmp["port"];
+		if(isset($cmp["path"])) $newStr .= $cmp["path"];
+		if(isset($cmp["query"])) $newStr .= '?' . $cmp["query"];
+		if(isset($cmp["fragment"])) $newStr .= '#' . $cmp["fragment"];
+		
+		$str = $newStr;
+	}
+
+}
